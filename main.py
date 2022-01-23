@@ -205,16 +205,19 @@ class EightOrbit:
         self.ksi_1_max = np.max(abs(self.ksi_1))
         self.ksi_2_max = np.max(abs(self.ksi_2))
         self.ksi_3_max = np.max(abs(self.ksi_3))
+        self.ksi_3 *= 6  # this value gives us circles
+        self.ksi_2 *= 6
+        self.ksi_1 *= 6
 
     def set_spherical_coord(self):
         self.teta = np.arctan(np.sqrt(self.ksi_1 * self.ksi_1 + self.ksi_2 * self.ksi_2) / self.ksi_3)
         self.phi = np.arctan(self.ksi_2 / self.ksi_1)
 
     def set_riemann_coords(self, blow=1):
-        self.dzeta_real = blow*self.ksi_1 / (1.0 - self.ksi_3)
-        self.dzeta_imag = blow*self.ksi_2 / (1.0 - self.ksi_3)
+        self.dzeta_real = blow * self.ksi_1 / (1.0 - self.ksi_3)
+        self.dzeta_imag = blow * self.ksi_2 / (1.0 - self.ksi_3)
         self.dzeta = np.array(self.dzeta_imag * 1j + self.dzeta_real)
-        #self.dzeta = np.array(np.tan(2.0 / self.teta) * np.exp(1j * self.phi))
+        # self.dzeta = np.array(np.cos(2.0 / self.teta) / np.sin(2.0 / self.teta) * np.exp(1j * self.phi))
 
     def set_lemaitre_roots(self, to_check=False):
         self.lemaitre = []
@@ -254,12 +257,14 @@ if __name__ == '__main__':
     data_frame = pd.read_csv('result.dat', delimiter=' ', header=None)
     eight = EightOrbit(data_frame)
     eight.set_ksi()
-    for blow in [0.1, 1, 3, 5, 7, 8, 9, 10, 30, 100, 1000]:
+    for blow in[1]:
+    # for blow in [0.1, 1, 3, 5, 7, 8, 9, 10, 30, 100, 1000]:
         eight.set_spherical_coord()
         eight.set_riemann_coords(blow=blow)
         # plt.plot(eight.dzeta_real, eight.dzeta_imag, label=f'Curve after Riemann projection, blow={blow}')
-        # plt.legend()
-        # plt.plot()
+        plt.plot(np.real(eight.dzeta), np.imag(eight.dzeta))
+        plt.legend()
+        plt.plot()
         eight.set_lemaitre_roots()
         fig, ax = plt.subplots()
 
