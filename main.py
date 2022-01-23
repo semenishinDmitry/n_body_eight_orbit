@@ -179,16 +179,53 @@ def get_init(filename):
     return q, p, m
 
 
+class EightOrbit:
+    def __init__(self, num_sol):
+        self.num_sol = num_sol
+        self.time = num_sol[0]
+
+    def set_ksi(self):
+        data_frame = self.num_sol
+        alpha_1 = data_frame[1]
+        alpha_2 = data_frame[2]
+        beta_1 = data_frame[4]
+        beta_2 = data_frame[5]
+        gamma_1 = data_frame[7]
+        gamma_2 = data_frame[8]
+        self.ksi_1 = 0.5 * ((beta_1 - alpha_1) ** 2 + (beta_2 - alpha_2) ** 2) - 0.666666 * (
+                    (gamma_1 - 0.5 * (alpha_1 + beta_1)) ** 2 +
+                    (gamma_2 - 0.5 * (alpha_2 + beta_2)) ** 2)
+        # TODO: посмотреть почему умножение на консатнту в начале у кси_3 делает пики не одинаковой высоты
+        self.ksi_3 = 2.0 / np.sqrt(3) * (data_frame[4] - data_frame[1]) *(data_frame[8] -
+        0.5 * (data_frame[2] + data_frame[5])) - (data_frame[5] - data_frame[2]) * (
+                                                           data_frame[7] - 0.5 * (data_frame[1] + data_frame[4]))
+        self.ksi_2 = 2 / np.sqrt(3) * (
+                    (data_frame[4] - data_frame[1]) * (data_frame[7] - 0.5 * (data_frame[1] + data_frame[4])) +
+                    (data_frame[5] - data_frame[2]) * (data_frame[8] - 0.5 * (data_frame[2] + data_frame[5])))
+        self.ksi_1_max = np.max(abs(self.ksi_1))
+        self.ksi_2_max = np.max(abs(self.ksi_2))
+        self.ksi_3_max = np.max(abs(self.ksi_3))
+
+    def set_spherical_coord(self):
+        self.teta = np.arctan(np.sqrt(self.ksi_1 * self.ksi_1 + self.ksi_2 * self.ksi_2) / self.ksi_3)
+        self.phi = np.arctan(self.ksi_2 / self.ksi_1)
+
+    def set_riemann_coords(self):
+        self.dzeta_real = self.ksi_1 / (1.0 - self.ksi_3)
+        self.dzeta_imag = self.ksi_2 / (1.0 - self.ksi_3)
+        self.dzeta = np.array(self.dzeta_imag * 1j + self.dzeta_real)
+        #self.dzeta = np.array(np.tan(2.0 / self.teta) * np.exp(1j * self.phi))
+
+    def set_lemaitre_roots(self):
+        self.lemaitre = []
+        for dzeta in self.dzeta:
+            self.lemaitre.append(np.roots([1, dzeta * np.sqrt(8), 0, np.sqrt(8), -1]))
+        self.lemaitre = np.array(self.lemaitre).flatten()
+        self.lemaitre_real = np.real(self.lemaitre)
+        self.lemaitre_imag = np.imag(self.lemaitre)
+
+
 if __name__ == '__main__':
-    import argparse
-
-    # parser = argparse.ArgumentParser(description='Provide step')
-    # parser.add_argument('--step', type=str, default='0.1',
-    #                 help='step of integration')
-    # args = parser.parse_args()
-
-
-    # init_pos, init_vel, masses = get_init('initial.dat')
     mp.dps = 30
     masses = mp.matrix([mp.mpf('0.333333333333333333'), mp.mpf('0.333333333333333333'), mp.mpf('0.333333333333333333')])
     x_2_dot = mp.mpf('0.749442191077792')
@@ -206,98 +243,25 @@ if __name__ == '__main__':
                           x_10, mp.mpf('0.0'), mp.mpf('0.0')])  # third
     h = mp.mpf('1e-3')
 
-    # n = 3000
+    #n = 3000
     # n = 1650 примерный период
     n = 1680
     stormlet_verlet_explicit(init_pos, init_vel_p, masses, step=h, n=n, to_file=True, filename='result.dat')
     data_frame = pd.read_csv('result.dat', delimiter=' ', header=None)
-    # plt.plot(data_frame[1], data_frame[2], label='first')
-    # plt.legend()
-    # plt.show()
-    plt.plot(data_frame[0], (data_frame[4] - data_frame[1]) * (data_frame[8] -
-                                                               0.5 * (data_frame[2] + data_frame[5])) -
-             (data_frame[5] - data_frame[2]) * (data_frame[7] - 0.5 * (data_frame[1] + data_frame[4])),
-             label='ksi_3 (t)')
-    plt.legend()
-    plt.show()
-    ksi_3_values = 2 / np.sqrt(3) * (data_frame[4] - data_frame[1]) * (data_frame[8] -
-                                                               0.5 * (data_frame[2] + data_frame[5])) - \
-                   (data_frame[5] - data_frame[2]) * (data_frame[7] - 0.5 * (data_frame[1] + data_frame[4]))
-    ksi_2_values = 2 / np.sqrt(3) * ((data_frame[4] - data_frame[1]) * (data_frame[7] - 0.5 * (data_frame[1] + data_frame[4])) +
-                                     (data_frame[5] - data_frame[2]) * (data_frame[8] - 0.5 * (data_frame[2] + data_frame[5])))
-    alpha_1 = data_frame[1]
-    alpha_2 = data_frame[2]
-    beta_1 = data_frame[4]
-    beta_2 = data_frame[5]
-    gamma_1 = data_frame[7]
-    gamma_2 = data_frame[8]
-    ksi_1_values = 0.5 * ((beta_1 - alpha_1) ** 2 + (beta_2 - alpha_2) ** 2) - 0.666666 * ((gamma_1 - 0.5 * (alpha_1 + beta_1)) ** 2 +
-                                                                                           (gamma_2 - 0.5 * (alpha_2 + beta_2)) ** 2)
-    plt.plot(data_frame[0], ksi_2_values, label='ksi_2(t)')
-    plt.legend()
-    plt.show()
-    plt.plot(data_frame[0], ksi_1_values, label='ksi_1')
-    plt.legend()
-    plt.show()
-    plt.plot(data_frame[0], ksi_1_values **2 + ksi_2_values**2 + ksi_3_values **2, label='sum of squares')
-    plt.legend()
-    plt.show()
-    plt.plot(data_frame[0], ksi_1_values**2 + ksi_2_values**2, label='ksi_2 + ksi_1')
-    plt.legend()
-    plt.show()
-    plt.plot(data_frame[0], ksi_3_values / ksi_2_values, label='ksi_3 / ksi_2')
-    plt.legend()
-    plt.show()
-    plt.plot(data_frame[0], ksi_1_values, label='ksi_1')
-    plt.plot(data_frame[0], ksi_2_values, label='ksi_2')
-    plt.plot(data_frame[0], ksi_3_values, label='ksi_3')
-    plt.plot([0, 1.7], [0, 0])
-    plt.legend()
-    plt.show()
-    # t_min_index = np.argmin(ksi_3_values)
-    # print(data_frame.loc(4, t_min_index))
-    # plt.plot([data_frame[4, t_min_index], data_frame[4, t_min_index+1]], [data_frame[5, t_min_index],data_frame[5, t_min_index+ 1]], '0', label='second')
-    # plt.plot([data_frame[1, t_min_index], data_frame[1, t_min_index+1]], [data_frame[2, t_min_index],data_frame[2, t_min_index+ 1]], '0', label='first')
-    # plt.plot([data_frame[7, t_min_index], data_frame[7, t_min_index+1]], [data_frame[8, t_min_index],data_frame[8, t_min_index+ 1]], '0', label='second')
-    # plt.legend()
-    # plt.show()
-    plt.plot(data_frame[1], data_frame[2], label='first')
-    # plt.legend()
-    # plt.show()
-    plt.plot(data_frame[4], data_frame[5], label='second')
-    # plt.legend()
-    # plt.show()
-    plt.plot(data_frame[7], data_frame[8], label='third')
-    plt.legend()
-    plt.show()
+    eight = EightOrbit(data_frame)
+    eight.set_ksi()
+    eight.set_spherical_coord()
+    eight.set_riemann_coords()
+    plt.plot(eight.dzeta_real, eight.dzeta_imag)
+    plt.plot()
+    eight.set_lemaitre_roots()
+    fig, ax = plt.subplots()
 
-    index = np.argmin(abs(data_frame[1] - init_pos[0]) + abs(data_frame[2] - init_pos[1]) +
-                      abs(data_frame[4] - init_pos[3]) + abs(data_frame[5] - init_pos[4]) +
-                      abs(data_frame[7] - init_pos[6]) + abs(data_frame[8] - init_pos[7]))
-    value = np.min(abs(data_frame[1] - init_pos[0]) + abs(data_frame[2] - init_pos[1]) +
-                      abs(data_frame[4] - init_pos[3]) + abs(data_frame[5] - init_pos[4]) +
-                      abs(data_frame[7] - init_pos[6]) + abs(data_frame[8] - init_pos[7]))
-    print(index, '       ', value)
+    # ключ цвета из {'b', 'g', 'r', 'c', 'm', 'y', 'k', 'w'}:
+    ax.scatter(eight.lemaitre_real, eight.lemaitre_imag,
+               c='r', s=0.1)
 
-    # h = mp.mpf(args.step)
-    # stormlet_verlet_explicit(init_pos, init_vel, masses, step=h, n=n, to_file=True, filename='result.dat')
-    # data_frame = pd.read_csv('result.dat', delimiter=' ', header=None)
-    # #plt.plot(data_frame[1], data_frame[2])
-    # #plt.plot(data_frame[4], data_frame[5])
-    # plt.plot(data_frame[7], data_frame[8])
-    # plt.show()
-    # a_e_list = [2, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4]
-    # for distance in a_e_list:
-    #     init_pos = mp.matrix([mp.mpf('0.0'), mp.mpf('0.0'), mp.mpf('0.0'),  # Солнце
-    #                           mp.mpf(str(-sun_jup)), mp.mpf('0.0'), mp.mpf('0.0'),  # Юпитер
-    #                           mp.mpf(str(-distance * a_e)), mp.mpf('0.0'), mp.mpf('0.0')])  # астероид
-    #     first_cosmic = np.sqrt(G * masses[0] / (a_e * distance))
-    #     init_vel = mp.matrix(([mp.mpf('0.0'), mp.mpf('0.0'), mp.mpf('0.0'),  # Солнце скорость в км/д
-    #                            mp.mpf('0.0'), mp.mpf(str(jup_vel)) * masses[1], mp.mpf('0.0'),  # Юпитер
-    #                            mp.mpf('0.0'), mp.mpf(str(first_cosmic)) * masses[2], mp.mpf('0.0')]))
-    #     stormlet_verlet_explicit(init_pos, init_vel, masses, step=h, n=n, to_file=True,
-    #                              filename=f'result_{distance}.dat')
-    #     data_frame = pd.read_csv(f'result_{distance}.dat', delimiter=' ', header=None)
-    #     plt.plot(data_frame[7], data_frame[8], label=f'{distance}_a_e')
-    #     plt.legend()
-    #     plt.show()
+    fig.set_figwidth(8)  # ширина и
+    fig.set_figheight(8)    #  высота "Figure"
+
+    plt.show()
