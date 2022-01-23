@@ -210,9 +210,9 @@ class EightOrbit:
         self.teta = np.arctan(np.sqrt(self.ksi_1 * self.ksi_1 + self.ksi_2 * self.ksi_2) / self.ksi_3)
         self.phi = np.arctan(self.ksi_2 / self.ksi_1)
 
-    def set_riemann_coords(self):
-        self.dzeta_real = self.ksi_1 / (1.0 - self.ksi_3)
-        self.dzeta_imag = self.ksi_2 / (1.0 - self.ksi_3)
+    def set_riemann_coords(self, blow=1):
+        self.dzeta_real = blow*self.ksi_1 / (1.0 - self.ksi_3)
+        self.dzeta_imag = blow*self.ksi_2 / (1.0 - self.ksi_3)
         self.dzeta = np.array(self.dzeta_imag * 1j + self.dzeta_real)
         #self.dzeta = np.array(np.tan(2.0 / self.teta) * np.exp(1j * self.phi))
 
@@ -254,18 +254,19 @@ if __name__ == '__main__':
     data_frame = pd.read_csv('result.dat', delimiter=' ', header=None)
     eight = EightOrbit(data_frame)
     eight.set_ksi()
-    eight.set_spherical_coord()
-    eight.set_riemann_coords()
-    plt.plot(eight.dzeta_real, eight.dzeta_imag, label='Curve after Riemann projection')
-    plt.legend()
-    plt.plot()
-    eight.set_lemaitre_roots()
-    fig, ax = plt.subplots()
+    for blow in [0.1, 1, 3, 5, 7, 8, 9, 10, 30, 100, 1000]:
+        eight.set_spherical_coord()
+        eight.set_riemann_coords(blow=blow)
+        # plt.plot(eight.dzeta_real, eight.dzeta_imag, label=f'Curve after Riemann projection, blow={blow}')
+        # plt.legend()
+        # plt.plot()
+        eight.set_lemaitre_roots()
+        fig, ax = plt.subplots()
 
-    # ключ цвета из {'b', 'g', 'r', 'c', 'm', 'y', 'k', 'w'}:
-    ax.scatter(eight.lemaitre_real[:], eight.lemaitre_imag[:],
-               c='r', s=0.1, label='Complex roots of Lemaitre regularization')
-    fig.set_figwidth(8)  # ширина и
-    fig.set_figheight(8) #  высота "Figure"
-    plt.legend()
-    plt.show()
+        # ключ цвета из {'b', 'g', 'r', 'c', 'm', 'y', 'k', 'w'}:
+        ax.scatter(eight.lemaitre_real[:], eight.lemaitre_imag[:],
+                   c='r', s=0.1, label=f'Complex roots of Lemaitre regularization, blow={blow}')
+        fig.set_figwidth(8)  # ширина и
+        fig.set_figheight(8) #  высота "Figure"
+        plt.legend()
+        plt.show()
