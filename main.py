@@ -196,9 +196,9 @@ class EightOrbit:
                     (gamma_1 - 0.5 * (alpha_1 + beta_1)) ** 2 +
                     (gamma_2 - 0.5 * (alpha_2 + beta_2)) ** 2)
         # TODO: посмотреть почему умножение на консатнту в начале у кси_3 делает пики не одинаковой высоты
-        self.ksi_3 = 2.0 / np.sqrt(3) * (data_frame[4] - data_frame[1]) *(data_frame[8] -
+        self.ksi_3 = 2.0 / np.sqrt(3) * ((data_frame[4] - data_frame[1]) *(data_frame[8] -
         0.5 * (data_frame[2] + data_frame[5])) - (data_frame[5] - data_frame[2]) * (
-                                                           data_frame[7] - 0.5 * (data_frame[1] + data_frame[4]))
+                                                           data_frame[7] - 0.5 * (data_frame[1] + data_frame[4])))
         self.ksi_2 = 2 / np.sqrt(3) * (
                     (data_frame[4] - data_frame[1]) * (data_frame[7] - 0.5 * (data_frame[1] + data_frame[4])) +
                     (data_frame[5] - data_frame[2]) * (data_frame[8] - 0.5 * (data_frame[2] + data_frame[5])))
@@ -216,10 +216,14 @@ class EightOrbit:
         self.dzeta = np.array(self.dzeta_imag * 1j + self.dzeta_real)
         #self.dzeta = np.array(np.tan(2.0 / self.teta) * np.exp(1j * self.phi))
 
-    def set_lemaitre_roots(self):
+    def set_lemaitre_roots(self, to_check=False):
         self.lemaitre = []
         for dzeta in self.dzeta:
-            self.lemaitre.append(np.roots([1, dzeta * np.sqrt(8), 0, np.sqrt(8), -1]))
+            self.lemaitre.append(np.roots([1, dzeta * np.sqrt(8), 0, np.sqrt(8), - dzeta]))
+            if to_check:
+                check = np.roots([1, dzeta * np.sqrt(8), 0, np.sqrt(8), -dzeta])
+                for t in check:
+                    print(t ** 4 + dzeta * np.sqrt(8) * t ** 3 + np.sqrt(8) * t - dzeta)
         self.lemaitre = np.array(self.lemaitre).flatten()
         self.lemaitre_real = np.real(self.lemaitre)
         self.lemaitre_imag = np.imag(self.lemaitre)
@@ -252,16 +256,16 @@ if __name__ == '__main__':
     eight.set_ksi()
     eight.set_spherical_coord()
     eight.set_riemann_coords()
-    plt.plot(eight.dzeta_real, eight.dzeta_imag)
+    plt.plot(eight.dzeta_real, eight.dzeta_imag, label='Curve after Riemann projection')
+    plt.legend()
     plt.plot()
     eight.set_lemaitre_roots()
     fig, ax = plt.subplots()
 
     # ключ цвета из {'b', 'g', 'r', 'c', 'm', 'y', 'k', 'w'}:
-    ax.scatter(eight.lemaitre_real, eight.lemaitre_imag,
-               c='r', s=0.1)
-
+    ax.scatter(eight.lemaitre_real[:], eight.lemaitre_imag[:],
+               c='r', s=0.1, label='Complex roots of Lemaitre regularization')
     fig.set_figwidth(8)  # ширина и
-    fig.set_figheight(8)    #  высота "Figure"
-
+    fig.set_figheight(8) #  высота "Figure"
+    plt.legend()
     plt.show()
