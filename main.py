@@ -1,14 +1,12 @@
 import cmath
 import math
-
 import numpy as np
 from tqdm import tqdm # Progress bar
 from mpmath import mp
 import pandas as pd
 import sys
 import matplotlib.pyplot as plt
-from scipy import optimize
-import matplotlib.animation as animation
+
 
 
 # гравитационная постоянная
@@ -28,8 +26,6 @@ def vector_to_N(vec):
     """
     функция обратная к vector_by_N
     """
-    # странно, но функция np.array преобразует mp.matrix
-    # в сплошной массив, не зависимо от размерности vec
     N = len(vec)
     return mp.matrix(np.array(vec.tolist()).reshape(N*3))
 
@@ -194,8 +190,6 @@ class EightOrbit:
         beta_2 = data_frame[5]
         gamma_1 = data_frame[7]
         gamma_2 = data_frame[8]
-        mu_1 = 0.333333 * 0.33333 / 0.666666666
-        mu_2 = 0.3333333 * 0.66666666
         self.ksi_1 = 0.5 * ((beta_1 - alpha_1) ** 2 + (beta_2 - alpha_2) ** 2) - 0.666666 * (
                     (gamma_1 - 0.5 * (alpha_1 + beta_1)) ** 2 +
                     (gamma_2 - 0.5 * (alpha_2 + beta_2)) ** 2)
@@ -205,22 +199,9 @@ class EightOrbit:
         self.ksi_2 = 2 / np.sqrt(3) * (
                     (data_frame[4] - data_frame[1]) * (data_frame[7] - 0.5 * (data_frame[1] + data_frame[4])) +
                     (data_frame[5] - data_frame[2]) * (data_frame[8] - 0.5 * (data_frame[2] + data_frame[5])))
-        # self.ksi_1 = mu_1 * ((beta_1 - alpha_1) ** 2 + (beta_2 - alpha_2) ** 2) - mu_2 * (
-        #         (gamma_1 - 0.5 * (alpha_1 + beta_1)) ** 2 +
-        #         (gamma_2 - 0.5 * (alpha_2 + beta_2)) ** 2)
-        # self.ksi_3 = 2.0 * np.sqrt(0.3333 ** 3) * ((data_frame[4] - data_frame[1]) * (data_frame[8] -
-        #                                                                     0.5 * (data_frame[2] + data_frame[5])) - (
-        #                                              data_frame[5] - data_frame[2]) * (
-        #                                          data_frame[7] - 0.5 * (data_frame[1] + data_frame[4])))
-        # self.ksi_2 = 2.0 * np.sqrt(0.333333 ** 3) * (
-        #         (data_frame[4] - data_frame[1]) * (data_frame[7] - 0.5 * (data_frame[1] + data_frame[4])) +
-        #         (data_frame[5] - data_frame[2]) * (data_frame[8] - 0.5 * (data_frame[2] + data_frame[5])))
         self.ksi_1_max = np.max(abs(self.ksi_1))
         self.ksi_2_max = np.max(abs(self.ksi_2))
         self.ksi_3_max = np.max(abs(self.ksi_3))
-        self.ksi_3 *= 3  # this value gives us circles
-        self.ksi_2 *= 3
-        self.ksi_1 *= 3
 
     @staticmethod
     def phi_spherical(x, y):
@@ -231,26 +212,19 @@ class EightOrbit:
         elif np.isclose(x, 0) and y < 0: return -np.pi / 2
 
     def set_spherical_coord(self):
-        #self.teta = np.arctan(np.sqrt(self.ksi_1 * self.ksi_1 + self.ksi_2 * self.ksi_2) / self.ksi_3)
         self.teta = np.arccos(self.ksi_3 / (np.sqrt(self.ksi_1 * self.ksi_1 + self.ksi_2 * self.ksi_2 + self.ksi_3 * self.ksi_3)))
-        self.phi = []
-        for x, y in zip(self.ksi_2, self.ksi_1):
-            self.phi.append(self.phi_spherical(x, y))
-        self.phi = np.array(self.phi)
-        plt.plot(self.phi, self.teta)
-        plt.show()
-        #self.phi = np.arctan(self.ksi_2 / self.ksi_1)
+        self.phi = np.arctan2(self.ksi_2, self.ksi_1)
+        self.ksi_1 = 0.5 * np.sin(self.teta) * np.cos(self.phi)
+        self.ksi_2 = 0.5 * np.sin(self.teta) * np.sin(self.phi)
+        self.ksi_3 = 0.5 * np.cos(self.teta)
 
     def set_riemann_coords(self, blow=1):
-        # self.dzeta_real = blow * self.ksi_1 / (1.0 - self.ksi_3)
-        # self.dzeta_imag = blow * self.ksi_2 / (1.0 - self.ksi_3)
         self.dzeta_real = blow * self.ksi_1 / (0.5 - self.ksi_3)
         self.dzeta_imag = blow * self.ksi_2 / (0.5 - self.ksi_3)
         self.dzeta = np.array(self.dzeta_imag * 1j + self.dzeta_real)
         self.dzeta_polar = []
         for dzeta in self.dzeta:
             self.dzeta_polar.append(cmath.polar(dzeta))
-        # self.dzeta = np.array(np.cos(2.0 / self.teta) / np.sin(2.0 / self.teta) * np.exp(1j * self.phi))
 
     def set_lemaitre_roots(self, to_check=False):
         self.lemaitre = []
@@ -258,7 +232,6 @@ class EightOrbit:
         polar = cmath.polar(self.dzeta[0])
         polar_degrees = polar[1]
         polar_degrees = math.degrees(polar_degrees)
-        print('dzeta_euler = ', polar[0], polar_degrees)
         self.euler = []
         for dzeta in self.dzeta:
             self.lemaitre.append(np.roots([1, dzeta * np.sqrt(8), 0, np.sqrt(8), - dzeta]))
@@ -298,7 +271,6 @@ class EightOrbit:
         assert np.max(check_tmp) - np.min(check_tmp) < 0.05, 'It is not a sphere!'
 
 
-
 if __name__ == '__main__':
     mp.dps = 30
     masses = mp.matrix([mp.mpf('0.333333333333333333'), mp.mpf('0.333333333333333333'), mp.mpf('0.333333333333333333')])
@@ -316,87 +288,19 @@ if __name__ == '__main__':
                           mp.mpf('0.0'), mp.mpf('0.0'), mp.mpf('0.0'),  # second
                           x_10, mp.mpf('0.0'), mp.mpf('0.0')])  # third
     h = mp.mpf('1e-3')
-
-    #n = 3000
-    # n = 1650 примерный период
     n = 1680
     stormlet_verlet_explicit(init_pos, init_vel_p, masses, step=h, n=n, to_file=True, filename='result.dat')
     data_frame = pd.read_csv('result.dat', delimiter=' ', header=None)
+    fig, ax = plt.subplots()
     plt.plot(data_frame[1], data_frame[2])
+    fig.set_figwidth(8)  # ширина и
+    fig.set_figheight(8)  # высота "Figure"
+    ax.set_xlabel('Ось x', fontsize=14)
+    ax.set_ylabel('Ось y', fontsize=14)
+    plt.xlim(-0.35, 0.35)
+    plt.ylim(-0.35, 0.35)
     plt.legend()
     plt.show()
     eight = EightOrbit(data_frame)
     eight.set_ksi()
-
-    for blow in [1]:
-    #for blow in [0.1, 1, 3, 5, 7, 8, 9, 10, 30, 100, 1000]:
-        eight.set_spherical_coord()
-        eight.set_riemann_coords(blow=blow)
-        fig, ax = plt.subplots()
-
-        # ключ цвета из {'b', 'g', 'r', 'c', 'm', 'y', 'k', 'w'}:
-        ax.scatter(np.real(eight.dzeta), np.imag(eight.dzeta),
-                   c='g', s=0.1)
-        ax.scatter(np.real(eight.dzeta[0]), np.imag(eight.dzeta[0]), c='r', s=30)
-        print(np.sqrt(np.real(eight.dzeta[0])** 2 + np.imag(eight.dzeta[0]) ** 2))
-        fig.set_figwidth(8)  # ширина и
-        fig.set_figheight(8)  # высота "Figure"
-        # plt.plot(eight.dzeta_real, eight.dzeta_imag, label=f'Curve after Riemann projection, blow={blow}')
-        # plt.plot(np.real(eight.dzeta), np.imag(eight.dzeta))
-        # plt.legend()
-        plt.plot()
-        eight.set_lemaitre_roots()
-        fig, ax = plt.subplots()
-
-        # ключ цвета из {'b', 'g', 'r', 'c', 'm', 'y', 'k', 'w'}:
-        # ax.scatter(eight.lemaitre_real[:], eight.lemaitre_imag[:],
-        #            c='r', s=0.1)
-        # ax.scatter(eight.euler_real[:], eight.euler_imag[:], c='b', s=30.0)
-        degrees = []
-        radii = []
-        for euler in eight.lemaitre:
-        # for euler in eight.euler:
-            polar = cmath.polar(euler)
-            polar_degrees = polar[1]
-            polar_degrees = math.degrees(polar_degrees)
-            if polar_degrees < 0:
-                polar_degrees += 360
-            degrees.append(polar_degrees)
-            radii.append(polar[0])
-            # print('r = ', polar[0], ' deg= ', polar_degrees, 'r1 = ', np.sqrt(np.real(euler)** 2 + np.imag(euler) ** 2))
-        ax.scatter(degrees, radii, c='b', s=1)
-
-        fig.set_figwidth(8)  # ширина и
-        fig.set_figheight(8)  # высота "Figure"
-        plt.ylim(0.97, 1.03)
-        plt.legend()
-        plt.show()
-
-    eight.set_circle()
-    fig, ax = plt.subplots()
-    ax.scatter(eight.complex_circle.real, eight.complex_circle.imag, c='b', s=0.1)
-    fig.set_figwidth(8)  # ширина и
-    fig.set_figheight(8)  # высота "Figure"
-    plt.xlim(-1.1, 1.1)
-    plt.ylim(-1.1, 1.1)
-    plt.legend()
-    plt.show()
-
-    eight.set_dzeta_inv()
-    fig1, ax1 = plt.subplots()
-    ax1.scatter(eight.dzeta_inv.real, eight.dzeta_inv.imag, c='r', s=0.1)
-    ax1.scatter(np.real(eight.dzeta), np.imag(eight.dzeta),
-               c='g', s=0.1)
-    fig1.set_figwidth(8)  # ширина и
-    fig1.set_figheight(8)  # высота "Figure"
-    plt.xlim(-0.55, 1)
-    plt.ylim(-1, 1)
-    plt.legend()
-    plt.show()
-
-    # eight.set_riemann_inv()
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection='3d')
-    # ax.scatter(eight.x_inv, eight.y_inv, eight.z_inv, s=0.1)
-    # plt.show()
 
